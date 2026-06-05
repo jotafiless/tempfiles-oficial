@@ -19,7 +19,7 @@ async function obtenerPerfiles() {
         const { data, error } = await supabase
             .from("perfiles")
             .select("*")
-            .order("fecha_creacion", { ascending: true });
+            .order("creado_en", { ascending: true });
 
         if (error) throw error;
         return data || [];

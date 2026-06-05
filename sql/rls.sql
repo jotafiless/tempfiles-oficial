@@ -21,27 +21,27 @@ CREATE POLICY "Permitir actualizar propio perfil" ON public.perfiles
 
 -- 3. Políticas para 'archivos'
 
--- Ver: Sus propios archivos (coincidencia de perfil_id) o archivos públicos de otros (es_publico = true)
+-- Ver: Sus propios archivos (coincidencia de usuario_id) o archivos públicos de otros (compartido = true)
 CREATE POLICY "Permitir lectura de archivos propios o públicos" ON public.archivos
     FOR SELECT USING (
-        es_publico = true OR 
-        perfil_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
+        compartido = true OR 
+        usuario_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
     );
 
 -- Modificar: Solo sus propios archivos
 CREATE POLICY "Permitir modificación de propios archivos" ON public.archivos
     FOR UPDATE USING (
-        perfil_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
+        usuario_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
     );
 
 -- Eliminar: Solo sus propios archivos
 CREATE POLICY "Permitir eliminación de propios archivos" ON public.archivos
     FOR DELETE USING (
-        perfil_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
+        usuario_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
     );
 
 -- Insertar: Permitir a cualquier perfil crear registros de archivos
 CREATE POLICY "Permitir insertar sus propios archivos" ON public.archivos
     FOR INSERT WITH CHECK (
-        perfil_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
+        usuario_id::text = coalesce(current_setting('request.headers', true)::json->>'x-profile-id', '')
     );

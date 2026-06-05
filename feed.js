@@ -15,7 +15,7 @@ async function obtenerFeedCompartido() {
                     foto
                 )
             `)
-            .eq("es_publico", true)
+            .eq("compartido", true)
             .order("fecha_subida", { ascending: false });
 
         if (error) throw error;
@@ -39,7 +39,7 @@ async function obtenerArchivosDestacados() {
                     foto
                 )
             `)
-            .eq("es_destacado", true)
+            .eq("destacado", true)
             .order("fecha_subida", { ascending: false });
 
         if (error) throw error;

@@ -22,7 +22,7 @@ async function obtenerMisArchivos() {
         const { data, error } = await supabase
             .from("archivos")
             .select("*")
-            .eq("perfil_id", perfil.id)
+            .eq("usuario_id", perfil.id)
             .order("fecha_subida", { ascending: false });
 
         if (error) throw error;
@@ -39,7 +39,7 @@ async function obtenerEstadisticasAlmacenamiento(perfilId) {
         const { data, error } = await supabase
             .from("archivos")
             .select("tamano")
-            .eq("perfil_id", perfilId);
+            .eq("usuario_id", perfilId);
 
         if (error) throw error;
 
@@ -104,15 +104,14 @@ async function subirArchivo(file, alProgresar = () => {}) {
         const { data: dbData, error: dbError } = await supabase
             .from("archivos")
             .insert([{
-                perfil_id: perfil.id,
+                usuario_id: perfil.id,
                 nombre: file.name,
                 tipo: file.type || "application/octet-stream",
-                ext: ext || "dat",
                 tamano: file.size,
-                url: urlPublica,
-                ruta_storage: nombreUnico,
-                es_publico: false, // Por defecto privado
-                es_destacado: false // Por defecto no destacado
+                archivo_url: urlPublica,
+                archivo_path: nombreUnico,
+                compartido: false, // Por defecto privado
+                destacado: false // Por defecto no destacado
             }])
             .select()
             .single();
@@ -185,7 +184,7 @@ async function cambiarCompartido(archivoId, esPublico) {
     try {
         const { data, error } = await supabase
             .from("archivos")
-            .update({ es_publico: esPublico })
+            .update({ compartido: esPublico })
             .eq("id", archivoId)
             .select()
             .single();
@@ -203,7 +202,7 @@ async function cambiarDestacado(archivoId, esDestacado) {
     try {
         const { data, error } = await supabase
             .from("archivos")
-            .update({ es_destacado: esDestacado })
+            .update({ destacado: esDestacado })
             .eq("id", archivoId)
             .select()
             .single();

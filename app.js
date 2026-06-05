@@ -34,6 +34,13 @@ let selectedProfileForPin = null;
 let currentSelectedAvatarUrl = AVATARES_PREDEFINIDOS[0].url;
 let fileToRenameId = null;
 
+// Helper para obtener la extensión en base al nombre de archivo
+function obtenerExtension(nombre) {
+    if (!nombre) return "dat";
+    const partes = nombre.split(".");
+    return partes.length > 1 ? partes.pop().toLowerCase() : "dat";
+}
+
 // Elementos DOM del sistema
 const DOMElements = {
     loadingScreen: document.getElementById("pantalla-carga"),
@@ -456,7 +463,7 @@ async function renderizarVistaInicio() {
         
         // Renderizar hasta 3 destacados superiores para dar dinamismo bento-grid
         destacados.slice(0, 3).forEach(file => {
-            const config = obtenerConfiguracionIcono(file.ext);
+            const config = obtenerConfiguracionIcono(obtenerExtension(file.nombre));
             const uploader = file.perfiles || { nombre: "Amigo", foto: AVATARES_PREDEFINIDOS[0].url };
             
             const card = document.createElement("div");
@@ -471,7 +478,7 @@ async function renderizarVistaInicio() {
                     </div>
                     <div class="featured-meta">
                         <h4 title="${file.nombre}">${file.nombre}</h4>
-                        <p>${formatearTamano(file.tamano)} • .${file.ext.toUpperCase()}</p>
+                        <p>${formatearTamano(file.tamano)} • .${obtenerExtension(file.nombre).toUpperCase()}</p>
                     </div>
                 </div>
                 <div class="featured-card-bottom">
@@ -479,7 +486,7 @@ async function renderizarVistaInicio() {
                         <img src="${uploader.foto}" alt="${uploader.nombre}" class="uploader-photo" referrerPolicy="no-referrer" />
                         <span class="uploader-name">${uploader.nombre}</span>
                     </div>
-                    <a href="${file.url}" target="_blank" class="btn-download-minimal" download="${file.nombre}" title="Descargar archivo">
+                    <a href="${file.archivo_url}" target="_blank" class="btn-download-minimal" download="${file.nombre}" title="Descargar archivo">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                     </a>
                 </div>
@@ -504,7 +511,7 @@ async function renderizarVistaInicio() {
         `;
     } else {
         compartidos.forEach(file => {
-            const config = obtenerConfiguracionIcono(file.ext);
+            const config = obtenerConfiguracionIcono(obtenerExtension(file.nombre));
             const uploader = file.perfiles || { nombre: "Amigo", foto: AVATARES_PREDEFINIDOS[0].url };
             const fecha = new Date(file.fecha_subida).toLocaleDateString("es-ES", {
                 day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
@@ -531,10 +538,10 @@ async function renderizarVistaInicio() {
                     </div>
                 </div>
                 <div class="feed-item-actions">
-                    <button class="btn-action-circle btn-copiar-link" data-url="${file.url}" title="Copiar enlace público">
+                    <button class="btn-action-circle btn-copiar-link" data-url="${file.archivo_url}" title="Copiar enlace público">
                         <i data-lucide="link" style="width: 16px; height: 16px;"></i>
                     </button>
-                    <a href="${file.url}" target="_blank" download="${file.nombre}" class="btn-action-circle" title="Descargar archivo">
+                    <a href="${file.archivo_url}" target="_blank" download="${file.nombre}" class="btn-action-circle" title="Descargar archivo">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                     </a>
                 </div>
@@ -574,7 +581,7 @@ async function renderizarVistaMisArchivos() {
         `;
     } else {
         files.forEach(file => {
-            const config = obtenerConfiguracionIcono(file.ext);
+            const config = obtenerConfiguracionIcono(obtenerExtension(file.nombre));
             const fecha = new Date(file.fecha_subida).toLocaleDateString("es-ES", {
                 day: "numeric", month: "short", year: "numeric"
             });
@@ -593,22 +600,22 @@ async function renderizarVistaMisArchivos() {
                 <div>
                     <div class="switch-wrapper">
                         <label class="switch">
-                            <input type="checkbox" class="chk-compartir" ${file.es_publico ? "checked" : ""} data-id="${file.id}" />
+                            <input type="checkbox" class="chk-compartir" ${file.compartido ? "checked" : ""} data-id="${file.id}" />
                             <span class="slider"></span>
                         </label>
                     </div>
                 </div>
                 <div class="file-actions-cell">
-                    <button class="btn-file-option btn-destacar ${file.es_destacado ? "active-yellow" : ""}" data-id="${file.id}" data-val="${file.es_destacado}" title="Destacar en grupo">
-                        <i data-lucide="star" style="width: 14px; height: 14px; ${file.es_destacado ? "fill: var(--warning);" : ""}"></i>
+                    <button class="btn-file-option btn-destacar ${file.destacado ? "active-yellow" : ""}" data-id="${file.id}" data-val="${file.destacado}" title="Destacar en grupo">
+                        <i data-lucide="star" style="width: 14px; height: 14px; ${file.destacado ? "fill: var(--warning);" : ""}"></i>
                     </button>
                     <button class="btn-file-option btn-renombrar" data-id="${file.id}" data-nombre="${file.nombre}" title="Renombrar">
                         <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                     </button>
-                    <a href="${file.url}" target="_blank" download="${file.nombre}" class="btn-file-option" title="Descargar">
+                    <a href="${file.archivo_url}" target="_blank" download="${file.nombre}" class="btn-file-option" title="Descargar">
                         <i data-lucide="download" style="width: 14px; height: 14px;"></i>
                     </a>
-                    <button class="btn-file-option btn-delete" data-id="${file.id}" data-ruta="${file.ruta_storage}" title="Eliminar definitivamente">
+                    <button class="btn-file-option btn-delete" data-id="${file.id}" data-ruta="${file.archivo_path}" title="Eliminar definitivamente">
                         <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                     </button>
                 </div>
@@ -781,7 +788,7 @@ async function renderizarVistaCompartidos() {
     DOMElements.sharedList.innerHTML = "";
     
     // Filtrar los que pertenecen a otros perfiles
-    const compartidosDeOtros = compartidos.filter(file => file.perfil_id !== perfil.id);
+    const compartidosDeOtros = compartidos.filter(file => file.usuario_id !== perfil.id);
 
     if (compartidosDeOtros.length === 0) {
         DOMElements.sharedList.innerHTML = `
@@ -793,7 +800,7 @@ async function renderizarVistaCompartidos() {
         `;
     } else {
         compartidosDeOtros.forEach(file => {
-            const config = obtenerConfiguracionIcono(file.ext);
+            const config = obtenerConfiguracionIcono(obtenerExtension(file.nombre));
             const uploader = file.perfiles || { nombre: "Amigo", foto: AVATARES_PREDEFINIDOS[0].url };
             const fecha = new Date(file.fecha_subida).toLocaleDateString("es-ES", {
                 day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
@@ -819,10 +826,10 @@ async function renderizarVistaCompartidos() {
                     </div>
                 </div>
                 <div class="feed-item-actions">
-                    <button class="btn-action-circle btn-copiar-link" data-url="${file.url}" title="Copiar enlace">
+                    <button class="btn-action-circle btn-copiar-link" data-url="${file.archivo_url}" title="Copiar enlace">
                         <i data-lucide="link" style="width: 16px; height: 16px;"></i>
                     </button>
-                    <a href="${file.url}" target="_blank" download="${file.nombre}" class="btn-action-circle" title="Descargar">
+                    <a href="${file.archivo_url}" target="_blank" download="${file.nombre}" class="btn-action-circle" title="Descargar">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                     </a>
                 </div>
@@ -861,7 +868,7 @@ async function renderizarVistaDestacados() {
         `;
     } else {
         destacados.forEach(file => {
-            const config = obtenerConfiguracionIcono(file.ext);
+            const config = obtenerConfiguracionIcono(obtenerExtension(file.nombre));
             const uploader = file.perfiles || { nombre: "Amigo", foto: AVATARES_PREDEFINIDOS[0].url };
             
             const card = document.createElement("div");
@@ -876,7 +883,7 @@ async function renderizarVistaDestacados() {
                     </div>
                     <div class="featured-meta">
                         <h4 title="${file.nombre}">${file.nombre}</h4>
-                        <p>${formatearTamano(file.tamano)} • .${file.ext.toUpperCase()}</p>
+                        <p>${formatearTamano(file.tamano)} • .${obtenerExtension(file.nombre).toUpperCase()}</p>
                     </div>
                 </div>
                 <div class="featured-card-bottom">
@@ -884,7 +891,7 @@ async function renderizarVistaDestacados() {
                         <img src="${uploader.foto}" alt="${uploader.nombre}" class="uploader-photo" referrerPolicy="no-referrer" />
                         <span class="uploader-name">${uploader.nombre}</span>
                     </div>
-                    <a href="${file.url}" target="_blank" download="${file.nombre}" class="btn-download-minimal" title="Descargar">
+                    <a href="${file.archivo_url}" target="_blank" download="${file.nombre}" class="btn-download-minimal" title="Descargar">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                     </a>
                 </div>
@@ -905,7 +912,7 @@ async function renderizarVistaPerfil() {
     
     // 1. Cargar estadísticas de archivos y capacidad
     const stats = await obtenerEstadisticasAlmacenamiento(perfil.id);
-    const dateCreated = new Date(perfil.fecha_creacion).toLocaleDateString("es-ES", {
+    const dateCreated = new Date(perfil.creado_en).toLocaleDateString("es-ES", {
         day: "numeric", month: "short", year: "numeric"
     });
     
