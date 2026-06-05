@@ -1,0 +1,6 @@
+{
+  "name": "Temp Files",
+  "description": "Plataforma privada de compartición de archivos para un grupo reducido de amigos con almacenamiento seguro, perfiles independientes y protección por PIN.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
