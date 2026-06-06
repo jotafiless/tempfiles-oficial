@@ -1892,3 +1892,81 @@ input:checked + .slider:before {
     }
 }
 
+/* Wide Modal for creation of custom beautiful profile with instructions */
+.modal-creation-wide {
+    max-width: 820px;
+    width: 95%;
+    padding: 2rem;
+}
+
+.modal-creation-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+@media (min-width: 768px) {
+    .modal-creation-grid {
+        grid-template-columns: 1.1fr 1fr;
+    }
+}
+
+.welcome-onboarding-card-modal {
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-left: 4px solid var(--accent-light);
+    display: flex;
+    flex-direction: column;
+}
+
+.welcome-onboarding-card-modal .welcome-header {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.welcome-onboarding-card-modal .welcome-title-wrap h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.welcome-onboarding-card-modal .welcome-body-text p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.welcome-onboarding-card-modal .step-num {
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.welcome-onboarding-card-modal .step-desc {
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+/* Modal creation form body styles alignment */
+.modal-creation-form-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+}
+

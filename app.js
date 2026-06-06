@@ -1,4 +1,5 @@
 // Orquestador Principal de Aplicación "Temp Files" (Vanilla JS)
+import { supabase } from "./supabase.js";
 import {
     AVATARES_PREDEFINIDOS,
     obtenerPerfiles,

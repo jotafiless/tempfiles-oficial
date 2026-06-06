@@ -32,39 +32,6 @@
         
         <h1 id="title-selection">¿Quién está usando Temp Files?</h1>
 
-        <!-- GUÍA DE EXPLICACIÓN PARA NUEVOS USUARIOS -->
-        <div class="welcome-onboarding-card" id="welcome-onboarding-card">
-          <div class="welcome-header">
-            <div class="welcome-title-wrap">
-              <i data-lucide="sparkles" class="welcome-sparkles" style="color: #fbbf24; width: 18px; height: 18px;"></i>
-              <h3>Guía de Inicio Rápido & PIN Seguro</h3>
-            </div>
-          </div>
-          <div class="welcome-body-text">
-            <p><strong>Temp Files</strong> es tu espacio seguro privado para cargar y compartir cualquier archivo en tu comunidad de forma instantánea.</p>
-            <div class="onboarding-steps">
-              <div class="step">
-                <div class="step-num">1</div>
-                <div class="step-desc">
-                  <strong>Añade Perfil:</strong> Pulsa el botón <strong>"+"</strong> para registrarte. Elige tu nombre y un avatar moderno.
-                </div>
-              </div>
-              <div class="step">
-                <div class="step-num">2</div>
-                <div class="step-desc">
-                  <strong>Define un PIN:</strong> Elige un <strong>PIN confidencial de 4 dígitos</strong>. Este PIN es tu llave física: protege tus subidas privadas de miradas externas y bloquea el borrado accidental de tus recursos.
-                </div>
-              </div>
-              <div class="step">
-                <div class="step-num">3</div>
-                <div class="step-desc">
-                  <strong>Visor Avanzado Todo Terreno:</strong> Carga cualquier formato (audio, video, ZIP, RAR, imágenes, PDFs, Word, Excel, e incluso binarios con lector hexadecimal nativo en vivo). Decida si los guarda personales o los publica al grupo.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div id="profiles-grid" class="profiles-grid">
           <!-- Los perfiles se renderizarán dinámicamente aquí -->
         </div>
@@ -274,36 +241,74 @@
 
       <!-- MODAL 1: REGISTRAR UN NUEVO PERFIL -->
       <div id="modal-crear-perfil" class="modal-overlay">
-        <div class="modal">
+        <div class="modal modal-creation-wide">
           <div class="modal-header">
             <h2>Crear Nuevo Perfil</h2>
             <button id="btn-close-create" class="btn-close-modal">
               <i data-lucide="x"></i>
             </button>
           </div>
-          <form id="form-crear-perfil">
-            <div class="form-group">
-              <label for="input-perfil-nombre">Nombre de Perfil</label>
-              <input type="text" id="input-perfil-nombre" class="form-control" placeholder="Ingresa tu nombre..." maxlength="20" required />
-            </div>
+          <div class="modal-creation-grid">
             
-            <div class="form-group">
-              <label>Selecciona un Avatar o añade uno personalizado en tu perfil</label>
-              <div id="avatar-selector-grid" class="avatar-selector-grid">
-                <!-- Avatares dinámicos -->
+            <!-- GUÍA DE INICIO RÁPIDO & PIN SEGURO CON ESTILO BONITO -->
+            <div class="welcome-onboarding-card-modal">
+              <div class="welcome-header">
+                <div class="welcome-title-wrap">
+                  <i data-lucide="sparkles" class="welcome-sparkles" style="color: #fbbf24; width: 18px; height: 18px;"></i>
+                  <h3>Guía de Inicio Rápido & PIN Seguro</h3>
+                </div>
+              </div>
+              <div class="welcome-body-text">
+                <p><strong>Temp Files</strong> es tu espacio seguro privado para cargar y compartir cualquier archivo en tu comunidad de forma instantánea.</p>
+                <div class="onboarding-steps">
+                  <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-desc">
+                      <strong>Añade Perfil:</strong> Elige tu nombre y un avatar moderno que te identifique ante la comunidad.
+                    </div>
+                  </div>
+                  <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-desc">
+                      <strong>Define tu PIN:</strong> Elige un <strong>PIN confidencial de 4 dígitos</strong>. Este PIN es tu llave física: protege tus subidas privadas de miradas externas y bloquea el borrado accidental de tus recursos.
+                    </div>
+                  </div>
+                  <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-desc">
+                      <strong>Visor Avanzado Todo Terreno:</strong> Carga cualquier formato (audio, video, ZIP, RAR, imágenes, PDFs, o binarios con lector hexadecimal nativo en vivo). Decida si los guarda personales o los publica al grupo.
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="input-perfil-pin">PIN de Acceso (4 dígitos numéricos)</label>
-              <input type="password" id="input-perfil-pin" class="form-control" placeholder="Ej: 1234" maxlength="4" required style="font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: 0.5rem; text-align: center;" />
-              <p class="dropzone-sub" style="margin-top: 0.25rem; text-align: center;">Este PIN será requerido para entrar a tu cuenta.</p>
-            </div>
+            <!-- FORMULARIO DE ACCESO -->
+            <form id="form-crear-perfil" class="modal-creation-form-body">
+              <div class="form-group">
+                <label for="input-perfil-nombre">Nombre de Perfil</label>
+                <input type="text" id="input-perfil-nombre" class="form-control" placeholder="Ingresa tu nombre..." maxlength="20" required />
+              </div>
+              
+              <div class="form-group">
+                <label>Selecciona un Avatar o añade uno personalizado en tu perfil</label>
+                <div id="avatar-selector-grid" class="avatar-selector-grid">
+                  <!-- Avatares dinámicos -->
+                </div>
+              </div>
 
-            <button type="submit" class="btn-primary">
-              <i data-lucide="user-plus"></i> Crear Perfil
-            </button>
-          </form>
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="input-perfil-pin">PIN de Acceso (4 dígitos numéricos)</label>
+                <input type="password" id="input-perfil-pin" class="form-control" placeholder="Ej: 1234" maxlength="4" required style="font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: 0.5rem; text-align: center;" />
+                <p class="dropzone-sub" style="margin-top: 0.35rem; text-align: center; color: var(--text-muted); font-size: 0.75rem;">Este PIN será requerido para entrar a tu cuenta.</p>
+              </div>
+
+              <button type="submit" class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i> Crear Perfil
+              </button>
+            </form>
+
+          </div>
         </div>
       </div>
 
