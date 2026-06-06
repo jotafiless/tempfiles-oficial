@@ -109,6 +109,7 @@ const DOMElements = {
     
     // Vista Perfil Contraseña/Imagen
     profileCardDisplay: document.getElementById("profile-card-display"),
+    communityProfilesList: document.getElementById("community-profiles-list"),
     avatarGridChange: document.getElementById("avatar-grid-change"),
     customAvatarUrl: document.getElementById("custom-avatar-url"),
     btnSaveCustomImg: document.getElementById("btn-save-custom-img"),
@@ -119,10 +120,21 @@ const DOMElements = {
     btnCloseCreate: document.getElementById("btn-close-create"),
     btnClosePin: document.getElementById("btn-close-pin"),
     btnCloseRename: document.getElementById("btn-close-rename"),
+    btnCloseVisor: document.getElementById("btn-close-visor"),
     
     // Modal Rename triggers
     inputNuevoNombre: document.getElementById("input-nuevo-nombre"),
-    btnSaveRename: document.getElementById("btn-save-rename")
+    btnSaveRename: document.getElementById("btn-save-rename"),
+
+    // Modal Visor triggers
+    modalVisor: document.getElementById("modal-visor"),
+    visorTitulo: document.getElementById("visor-titulo"),
+    visorDisplayArea: document.getElementById("visor-display-area"),
+    visorMetaExt: document.getElementById("visor-meta-ext"),
+    visorMetaSize: document.getElementById("visor-meta-size"),
+    visorMetaUploader: document.getElementById("visor-meta-uploader"),
+    visorBtnDescargar: document.getElementById("visor-btn-descargar"),
+    visorBtnCopiar: document.getElementById("visor-btn-copiar")
 };
 
 // ================= SISTEMA DE TOAST NOTIFICACIONES LITE =================
@@ -145,6 +157,448 @@ function showToast(message, type = "info") {
     setTimeout(() => {
         DOMElements.toast.classList.remove("active");
     }, 4500);
+}
+
+// Helper para cargar scripts externos dinámicamente de forma limpia
+function cargarScriptExterno(url, verificarGlobal) {
+    return new Promise((resolve) => {
+        if (window[verificarGlobal]) return resolve(window[verificarGlobal]);
+        const script = document.createElement("script");
+        script.src = url;
+        script.onload = () => resolve(window[verificarGlobal]);
+        script.onerror = () => resolve(null);
+        document.head.appendChild(script);
+    });
+}
+
+// Helper para convertir un arrayBuffer a una rejilla hexadecimal estética (Hex Viewer)
+function generarVistaHex(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    let hexHtml = "";
+    const len = Math.min(bytes.length, 512); // Limitar a los primeros 512 bytes para rendimiento
+    
+    for (let i = 0; i < len; i += 16) {
+        // Offset de dirección en hexadecimal
+        let offset = i.toString(16).padStart(8, '0').toUpperCase();
+        
+        let hexParts = [];
+        let asciiParts = [];
+        
+        for (let j = 0; j < 16; j++) {
+            if (i + j < bytes.length) {
+                const b = bytes[i + j];
+                hexParts.push(b.toString(16).padStart(2, '0').toUpperCase());
+                // Carácter ASCII legible o punto para no legibles
+                if (b >= 32 && b <= 126) {
+                    asciiParts.push(String.fromCharCode(b));
+                } else {
+                    asciiParts.push(".");
+                }
+            } else {
+                hexParts.push("  ");
+                asciiParts.push(" ");
+            }
+        }
+        
+        const lineaHex = hexParts.slice(0, 8).join(" ") + "  " + hexParts.slice(8).join(" ");
+        const lineaAscii = asciiParts.join("");
+        
+        hexHtml += `<span style="color: var(--accent-light); font-weight: 500;">${offset}</span>  <span style="color: #e4e4e7;">${lineaHex}</span>  <span style="color: var(--text-secondary);">|${lineaAscii}|</span>\n`;
+    }
+    
+    if (bytes.length > 512) {
+        hexHtml += `\n<span style="color: var(--text-muted);">... [Mostrando los primeros 512 bytes de un total de ${formatearTamano(bytes.length)}] ...</span>`;
+    }
+    return hexHtml;
+}
+
+// ================= VISOR MULTIFORMATO DE ARCHIVOS (IMÁGENES, AUDIO, VIDEO, PDF, TEXTO, ETC.) =================
+async function abrirVisorArchivo(file) {
+    if (!file) {
+        showToast("No se pudo cargar el archivo.", "error");
+        return;
+    }
+
+    const { nombre, tamano, archivo_path, archivo_url } = file;
+    const ext = obtenerExtension(nombre).toLowerCase();
+    
+    // CARGAR MÁXIMA SEGURIDAD: Obtener URL firmada temporal de Supabase Storage para evitar bloqueos por políticas de bucket privado
+    let finalUrl = archivo_url;
+    if (archivo_path) {
+        try {
+            const { data, error } = await supabase.storage
+                .from("temp-files")
+                .createSignedUrl(archivo_path, 3600); // 1 hora de validez duradera
+            
+            if (!error && data && data.signedUrl) {
+                finalUrl = data.signedUrl;
+            }
+        } catch (e) {
+            console.warn("Fallo crear URL firmada, cayendo en URL pública default:", e);
+        }
+    }
+
+    DOMElements.visorTitulo.textContent = nombre;
+    DOMElements.visorTitulo.title = nombre;
+    DOMElements.visorMetaExt.textContent = ext.toUpperCase();
+    DOMElements.visorMetaSize.textContent = formatearTamano(tamano);
+    
+    const uploader = file.perfiles || { nombre: "Comunidad", foto: "" };
+    DOMElements.visorMetaUploader.innerHTML = uploader.foto 
+        ? `<img src="${uploader.foto}" alt="${uploader.nombre}" class="user-badge-photo" referrerPolicy="no-referrer" style="width: 18px; height: 18px; display: inline-block; vertical-align: middle; margin-right: 0.35rem; border-radius: 4px; pointer-events: none;" /> Subido por <strong>${uploader.nombre}</strong>`
+        : `Compartido en la plataforma`;
+
+    // Configurar enlace de descarga directa con URL firmada para total compatibilidad
+    DOMElements.visorBtnDescargar.href = finalUrl;
+    DOMElements.visorBtnDescargar.setAttribute("download", nombre);
+    
+    // Clonar botón de copia para limpiar listeners antiguos de copia
+    const oldCopyBtn = DOMElements.visorBtnCopiar;
+    const newCopyBtn = oldCopyBtn.cloneNode(true);
+    oldCopyBtn.parentNode.replaceChild(newCopyBtn, oldCopyBtn);
+    DOMElements.visorBtnCopiar = newCopyBtn;
+    
+    DOMElements.visorBtnCopiar.addEventListener("click", () => {
+        navigator.clipboard.writeText(finalUrl).then(() => {
+            showToast("Enlace del archivo copiado con éxito", "success");
+        }).catch(() => {
+            showToast("Error al copiar enlace", "error");
+        });
+    });
+
+    // Agrupar todos los formatos conocidos de archivo
+    const formatGroups = {
+        imagen: ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'],
+        audio: ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'],
+        video: ['mp4', 'webm', 'ogv', 'mkv', 'mov', '3gp'],
+        texto: ['txt', 'js', 'css', 'json', 'html', 'htm', 'md', 'sql', 'xml', 'ts', 'py', 'java', 'c', 'cpp', 'rs', 'sh', 'bat', 'yml', 'yaml', 'log', 'ini', 'cfg', 'conf', 'env', 'htaccess'],
+        pdf: ['pdf'],
+        office: ['docx', 'xlsx', 'pptx', 'doc', 'xls', 'ppt'],
+        binario: ['dat', 'bin', 'db', 'sqlite', 'class', 'exe', 'dll', 'sys', 'hex', 'out'],
+        compreso: ['zip', 'rar', '7z', 'tar', 'gz']
+    };
+
+    let displayHtml = "";
+
+    if (formatGroups.imagen.includes(ext)) {
+        // IMÁGENES MEJORADAS CON HERRAMIENTAS DE ZOOM, ROTACIÓN Y ENFOQUE
+        displayHtml = `
+            <div class="visor-display-box" id="visor-img-controller-box">
+                <div class="visor-image-wrapper">
+                    <img src="${finalUrl}" class="visor-image-enhanced" id="enhanced-image-preview" alt="${nombre}" referrerPolicy="no-referrer" style="transform: scale(1) rotate(0deg);" />
+                </div>
+                <div class="visor-image-toolbar">
+                    <button class="visor-tool-btn" id="visor-zoom-out" title="Alejar (Alejar vista)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); font-weight: 600;" id="visor-zoom-label">100%</span>
+                    <button class="visor-tool-btn" id="visor-zoom-in" title="Acercar (Acercar vista)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <div style="width: 1px; height: 16px; background-color: var(--border-color); margin: 0 0.25rem;"></div>
+                    <button class="visor-tool-btn" id="visor-rotate-left" title="Rotar Izquierda">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.57 12a9 9 0 1 1 .75 3.52"/><polyline points="2 16 2 11 7 11"/></svg>
+                    </button>
+                    <button class="visor-tool-btn" id="visor-rotate-right" title="Rotar Derecha">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.43 12a9 9 0 1 0-.75 3.52"/><polyline points="22 16 22 11 17 11"/></svg>
+                    </button>
+                    <button class="visor-tool-btn" id="visor-reset" title="Restaurar Tamaño y Rotación">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><polyline points="16 3 21 3 21 8"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><polyline points="8 21 3 21 3 16"/></svg>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Añadir listeners para los botones de la barra de herramientas
+        setTimeout(() => {
+            const imgEl = document.getElementById("enhanced-image-preview");
+            const btnZoomIn = document.getElementById("visor-zoom-in");
+            const btnZoomOut = document.getElementById("visor-zoom-out");
+            const btnRotateL = document.getElementById("visor-rotate-left");
+            const btnRotateR = document.getElementById("visor-rotate-right");
+            const btnReset = document.getElementById("visor-reset");
+            const zoomLbl = document.getElementById("visor-zoom-label");
+
+            if (imgEl && btnZoomIn && btnZoomOut && btnRotateL && btnRotateR && btnReset && zoomLbl) {
+                let currentScale = 1;
+                let currentRotation = 0;
+
+                const applyTransform = () => {
+                    imgEl.style.transform = `scale(${currentScale}) rotate(${currentRotation}deg)`;
+                    zoomLbl.textContent = `${Math.round(currentScale * 100)}%`;
+                };
+
+                btnZoomIn.addEventListener("click", () => {
+                    if (currentScale < 3) {
+                        currentScale += 0.25;
+                        applyTransform();
+                    }
+                });
+
+                btnZoomOut.addEventListener("click", () => {
+                    if (currentScale > 0.5) {
+                        currentScale -= 0.25;
+                        applyTransform();
+                    }
+                });
+
+                btnRotateL.addEventListener("click", () => {
+                    currentRotation -= 90;
+                    applyTransform();
+                });
+
+                btnRotateR.addEventListener("click", () => {
+                    currentRotation += 90;
+                    applyTransform();
+                });
+
+                btnReset.addEventListener("click", () => {
+                    currentScale = 1;
+                    currentRotation = 0;
+                    applyTransform();
+                });
+            }
+        }, 150);
+
+    } else if (formatGroups.audio.includes(ext)) {
+        // AUDIO
+        displayHtml = `
+            <div class="visor-audio-container">
+                <div class="audio-disk audio-disk-spin" id="visor-audio-disk">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                </div>
+                <audio controls src="${finalUrl}" class="visor-audio-element" autoplay id="audio-player-element"></audio>
+            </div>
+        `;
+    } else if (formatGroups.video.includes(ext)) {
+        // VIDEO
+        displayHtml = `<video controls src="${finalUrl}" class="visor-video-element" autoplay playsinline></video>`;
+    } else if (formatGroups.pdf.includes(ext)) {
+        // PDF (Incrustado completo con contenedor de visualización)
+        displayHtml = `<iframe src="${finalUrl}" class="visor-iframe"></iframe>`;
+    } else if (formatGroups.texto.includes(ext)) {
+        // TEXTO / CÓDIGO (Dynamic Fetch)
+        displayHtml = `
+            <div class="visor-text-container" id="visor-text-fetch-loader">
+                <p style="color: var(--text-secondary); text-align: center; padding: 1.5rem;">Cargando contenido del archivo de texto... <span class="spinner" style="width: 20px; height: 20px; display: inline-block; margin: 0 0 0 10px; vertical-align: middle;"></span></p>
+            </div>
+        `;
+        
+        fetch(finalUrl)
+            .then(r => {
+                if (!r.ok) throw new Error("No se pudo obtener el contenido del archivo.");
+                return r.text();
+            })
+            .then(text => {
+                const escaped = text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+                const loader = document.getElementById("visor-text-fetch-loader");
+                if (loader) {
+                    loader.innerHTML = `<pre class="visor-text-content"><code>${escaped}</code></pre>`;
+                }
+            })
+            .catch(err => {
+                const loader = document.getElementById("visor-text-fetch-loader");
+                if (loader) {
+                    loader.innerHTML = `
+                        <div class="unsupported-preview-box">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <h3>Error al cargar texto</h3>
+                            <p>${err.message}</p>
+                        </div>
+                    `;
+                }
+            });
+    } else if (formatGroups.office.includes(ext)) {
+        // DOCUMENTOS DE OFFICE (Word, Excel, PowerPoint) - Default online viewer
+        const encoded = encodeURIComponent(finalUrl);
+        displayHtml = `<iframe src="https://docs.google.com/gview?url=${encoded}&embedded=true" class="visor-iframe"></iframe>`;
+    } else if (ext === "zip") {
+        // ARCHIVOS COMPRIMIDOS ZIP (Visualizador de contenido interactivo client-side usando JSZip)
+        displayHtml = `
+            <div class="archive-preview-box">
+                <div class="archive-title-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <div>
+                        <h4 style="margin: 0; color: var(--text-primary);">Explorador de Archivo ZIP</h4>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Extrayendo lista de archivos contenidos...</p>
+                    </div>
+                </div>
+                <div class="archive-files-list" id="zip-files-list-container">
+                    <p style="color: var(--text-secondary); text-align: center; padding: 1.5rem;">Cargando motor de compresión... <span class="spinner" style="width: 20px; height: 20px; display: inline-block; margin: 0 0 0 10px; vertical-align: middle;"></span></p>
+                </div>
+            </div>
+        `;
+
+        // Cargar JSZip dinámicamente
+        cargarScriptExterno("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", "JSZip")
+            .then(JSZip => {
+                if (!JSZip) throw new Error("No se pudo inicializar la librería de descompresión JSZip.");
+                return fetch(finalUrl);
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("No se pudo descargar el archivo zip.");
+                return res.arrayBuffer();
+            })
+            .then(ab => {
+                return window.JSZip.loadAsync(ab);
+            })
+            .then(zip => {
+                const container = document.getElementById("zip-files-list-container");
+                if (!container) return;
+                
+                let listHtml = "";
+                let count = 0;
+                
+                zip.forEach((relativePath, zipEntry) => {
+                    count++;
+                    const isDir = zipEntry.dir;
+                    const iconName = isDir ? "folder" : "file-text";
+                    const sizeText = isDir ? "" : formatearTamano(zipEntry._data.uncompressedSize || 0);
+                    
+                    listHtml += `
+                        <div class="archive-file-item">
+                            <div class="archive-file-name-wrap">
+                                <i data-lucide="${iconName}" style="width: 14px; height: 14px; color: ${isDir ? "var(--warning)" : "var(--accent-light)"};"></i>
+                                <span title="${relativePath}">${relativePath}</span>
+                            </div>
+                            <span class="archive-file-size">${sizeText}</span>
+                        </div>
+                    `;
+                });
+                
+                if (count === 0) {
+                    container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 1rem;">La carpeta ZIP está vacía.</p>`;
+                } else {
+                    container.innerHTML = listHtml;
+                    if (window.lucide) {
+                        window.lucide.createIcons();
+                    }
+                }
+            })
+            .catch(err => {
+                const container = document.getElementById("zip-files-list-container");
+                if (container) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 1rem; color: var(--text-muted);">
+                            <p>No se pudo listar el contenido del .ZIP de forma directa.</p>
+                            <p style="font-size: 0.75rem;">${err.message}</p>
+                        </div>
+                    `;
+                }
+            });
+
+    } else if (formatGroups.binario.includes(ext)) {
+        // ARCHIVOS BINARIOS (.DAT, .BIN, .DB, .EXE, etc.) -> Hexadecimal Viewer
+        displayHtml = `
+            <div class="archive-preview-box" style="max-width: 800px; width: 100%;">
+                <div class="archive-title-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-light)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+                    <div>
+                        <h4 style="margin: 0; color: var(--text-primary);">Editor Hexagonal de Datos Nativos</h4>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Estructura interna física del archivo binario .${ext.toUpperCase()}</p>
+                    </div>
+                </div>
+                <div class="visor-text-container" style="background-color: #050506; border-color: #27272a;">
+                    <pre class="hex-viewer-text" id="hex-view-container">Cargando bytes del archivo... <span class="spinner" style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-left: 10px;"></span></pre>
+                </div>
+            </div>
+        `;
+
+        fetch(finalUrl)
+            .then(res => {
+                if (!res.ok) throw new Error("No se pudo acceder a los datos binarios.");
+                return res.arrayBuffer();
+            })
+            .then(ab => {
+                const container = document.getElementById("hex-view-container");
+                if (container) {
+                    container.innerHTML = generarVistaHex(ab);
+                }
+            })
+            .catch(err => {
+                const container = document.getElementById("hex-view-container");
+                if (container) {
+                    container.innerHTML = `<span style="color: var(--danger)">No se pudo renderizar la representación binaria: ${err.message}</span>`;
+                }
+            });
+
+    } else if (formatGroups.compreso.includes(ext)) {
+        // OTROS COMPRIMIDOS (RAR, 7Z, TAR, GZ)
+        displayHtml = `
+            <div class="unsupported-preview-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                <h3>Archivo Comprimido Paquetizado (.${ext.toUpperCase()})</h3>
+                <p>Contiene un conjunto de recursos empaquetados de forma protegida para la comunidad.</p>
+                <p>Descarga este paquete a continuación para extraer tus directorios y archivos completos localmente.</p>
+            </div>
+        `;
+    } else {
+        // FORMATO NO SOPORTADO DIRECTAMENTE -> Por defecto renderizamos Hexagonal o texto básico para asegurar que "todo" abre!
+        displayHtml = `
+            <div class="archive-preview-box" style="max-width: 800px; width: 100%;">
+                <div class="archive-title-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+                    <div>
+                        <h4 style="margin: 0; color: var(--text-primary); font-family: var(--font-heading);">Inspector de Datos Genéricos (.${ext.toUpperCase()})</h4>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">Análisis estructural e internalidad en tiempo real</p>
+                    </div>
+                </div>
+                <div class="visor-text-container" style="background-color: #050506; border-color: #27272a;">
+                    <pre class="hex-viewer-text" id="generic-hex-view-container">Cargando bytes de datos... <span class="spinner" style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-left: 10px;"></span></pre>
+                </div>
+            </div>
+        `;
+
+        fetch(finalUrl)
+            .then(res => {
+                if (!res.ok) throw new Error("No se pudo leer la corriente de datos del archivo.");
+                return res.arrayBuffer();
+            })
+            .then(ab => {
+                const container = document.getElementById("generic-hex-view-container");
+                if (container) {
+                    container.innerHTML = generarVistaHex(ab);
+                }
+            })
+            .catch(() => {
+                // Si falla el fetch de buffer (ej. CORS o similar), mostramos la advertencia clásica estilizada
+                const area = DOMElements.visorDisplayArea;
+                if (area) {
+                    area.innerHTML = `
+                        <div class="unsupported-preview-box">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+                            <h3>Vista Previa no Disponible</h3>
+                            <p>El formato <strong>.${ext.toUpperCase()}</strong> no permite vista previa multimedia nativa.</p>
+                            <p>Descárgalo abajo para inspeccionarlo o abrirlo de forma externa.</p>
+                        </div>
+                    `;
+                }
+            });
+    }
+
+    DOMElements.visorDisplayArea.innerHTML = displayHtml;
+
+    // Controlar animación de rotación de disco en reproductor de audio
+    if (formatGroups.audio.includes(ext)) {
+        setTimeout(() => {
+            const audioElem = document.getElementById("audio-player-element");
+            const diskElem = document.getElementById("visor-audio-disk");
+            if (audioElem && diskElem) {
+                audioElem.addEventListener("play", () => diskElem.classList.add("audio-disk-spin"));
+                audioElem.addEventListener("pause", () => diskElem.classList.remove("audio-disk-spin"));
+            }
+        }, 100);
+    }
+
+    DOMElements.modalVisor.classList.add("active");
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 }
 
 // ================= INICIALIZACIÓN MÓDULO APP =================
@@ -468,6 +922,7 @@ async function renderizarVistaInicio() {
             
             const card = document.createElement("div");
             card.className = "featured-card";
+            card.style.cursor = "pointer";
             card.innerHTML = `
                 <div class="featured-badge">
                     <i data-lucide="star" style="width: 12px; height: 12px; fill: var(--warning);"></i> Destacado
@@ -491,6 +946,12 @@ async function renderizarVistaInicio() {
                     </a>
                 </div>
             `;
+            
+            card.addEventListener("click", (e) => {
+                if (e.target.closest(".btn-download-minimal")) return;
+                abrirVisorArchivo(file);
+            });
+
             DOMElements.featuredGridTop.appendChild(card);
         });
     } else {
@@ -519,6 +980,7 @@ async function renderizarVistaInicio() {
             
             const item = document.createElement("div");
             item.className = "feed-item";
+            item.style.cursor = "pointer";
             item.innerHTML = `
                 <div class="feed-item-left">
                     <img src="${uploader.foto}" alt="${uploader.nombre}" class="user-badge-photo" referrerPolicy="no-referrer" />
@@ -547,6 +1009,12 @@ async function renderizarVistaInicio() {
                 </div>
             `;
             
+            // Clic en elemento abre visor de archivo
+            item.addEventListener("click", (e) => {
+                if (e.target.closest(".feed-item-actions") || e.target.closest(".btn-action-circle")) return;
+                abrirVisorArchivo(file);
+            });
+
             // Añadir evento para copiar link de descarga directa
             item.querySelector(".btn-copiar-link").addEventListener("click", (e) => {
                 const targetUrl = e.currentTarget.dataset.url;
@@ -622,6 +1090,13 @@ async function renderizarVistaMisArchivos() {
             `;
 
             // EVENTOS DE BOTONES INDIVIDUALES
+            
+            // Clic en la celda del nombre abre el visor de archivos
+            const nameCell = row.querySelector(".file-name-cell");
+            nameCell.style.cursor = "pointer";
+            nameCell.addEventListener("click", () => {
+                abrirVisorArchivo(file);
+            });
             
             // Toggle compartir
             row.querySelector(".chk-compartir").addEventListener("change", async (e) => {
@@ -808,6 +1283,7 @@ async function renderizarVistaCompartidos() {
             
             const item = document.createElement("div");
             item.className = "feed-item";
+            item.style.cursor = "pointer";
             item.innerHTML = `
                 <div class="feed-item-left">
                     <img src="${uploader.foto}" alt="${uploader.nombre}" class="user-badge-photo" referrerPolicy="no-referrer" />
@@ -834,6 +1310,12 @@ async function renderizarVistaCompartidos() {
                     </a>
                 </div>
             `;
+            
+            // Clic en elemento abre visor de archivo
+            item.addEventListener("click", (e) => {
+                if (e.target.closest(".feed-item-actions") || e.target.closest(".btn-action-circle")) return;
+                abrirVisorArchivo(file);
+            });
             
             item.querySelector(".btn-copiar-link").addEventListener("click", (e) => {
                 const targetUrl = e.currentTarget.dataset.url;
@@ -873,6 +1355,7 @@ async function renderizarVistaDestacados() {
             
             const card = document.createElement("div");
             card.className = "featured-card";
+            card.style.cursor = "pointer";
             card.innerHTML = `
                 <div class="featured-badge">
                     <i data-lucide="star" style="width: 12px; height: 12px; fill: var(--warning);"></i> Destacado
@@ -896,6 +1379,12 @@ async function renderizarVistaDestacados() {
                     </a>
                 </div>
             `;
+
+            card.addEventListener("click", (e) => {
+                if (e.target.closest(".btn-download-minimal")) return;
+                abrirVisorArchivo(file);
+            });
+
             DOMElements.featuredGridFull.appendChild(card);
         });
     }
@@ -957,6 +1446,34 @@ async function renderizarVistaPerfil() {
         });
         DOMElements.avatarGridChange.appendChild(img);
     });
+
+    // 3. Renderizar listado de integrantes unidos debajo
+    if (DOMElements.communityProfilesList) {
+        DOMElements.communityProfilesList.innerHTML = "";
+        try {
+            const listado = await obtenerPerfiles();
+            listado.forEach(p => {
+                const item = document.createElement("div");
+                item.className = "community-profile-item";
+                
+                const isCurrentUser = p.id === perfil.id;
+                const badgeText = isCurrentUser ? "Tú" : "Miembro";
+                const badgeClass = isCurrentUser ? "community-profile-badge current-user-badge" : "community-profile-badge";
+                
+                item.innerHTML = `
+                    <div class="community-profile-meta">
+                        <img src="${p.foto}" alt="${p.nombre}" class="community-profile-photo" referrerPolicy="no-referrer" />
+                        <span class="community-profile-name">${p.nombre}</span>
+                    </div>
+                    <span class="${badgeClass}">${badgeText}</span>
+                `;
+                DOMElements.communityProfilesList.appendChild(item);
+            });
+        } catch (e) {
+            console.error("No se pudo renderizar la lista de la comunidad", e);
+            DOMElements.communityProfilesList.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem;">No se pudieron cargar los perfiles del grupo.</p>`;
+        }
+    }
 
     DOMElements.customAvatarUrl.value = "";
     DOMElements.changePin.value = "";
@@ -1030,6 +1547,11 @@ function configurarEventosGlobales() {
         DOMElements.modalRenombrar.classList.remove("active");
     });
 
+    DOMElements.btnCloseVisor.addEventListener("click", () => {
+        DOMElements.visorDisplayArea.innerHTML = ""; // Detener reproducción de audio/video
+        DOMElements.modalVisor.classList.remove("active");
+    });
+
     // Cerrar haciendo clic fuera del modal container
     const overlays = [DOMElements.modalCrearPerfil, DOMElements.modalPin, DOMElements.modalRenombrar];
     overlays.forEach(overlay => {
@@ -1038,5 +1560,12 @@ function configurarEventosGlobales() {
                 overlay.classList.remove("active");
             }
         });
+    });
+
+    DOMElements.modalVisor.addEventListener("mousedown", (e) => {
+        if (e.target === DOMElements.modalVisor) {
+            DOMElements.visorDisplayArea.innerHTML = ""; // Detener reproducción de audio/video
+            DOMElements.modalVisor.classList.remove("active");
+        }
     });
 }

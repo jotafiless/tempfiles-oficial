@@ -25,7 +25,46 @@
 
       <!-- PANTALLA SELECCIÓN DE PERFIL (Estilo Netflix) -->
       <section id="profile-selection-screen" class="profile-selection-screen">
+        <div class="logo-screen-header">
+           <img src="https://i.ibb.co/R4ZRNRmR/logoof.png" alt="Temp Files Logo" class="onboarding-brand-logo" width="90" height="90" referrerpolicy="no-referrer" />
+           <h1 class="logo-screen-title">TEMP FILES</h1>
+        </div>
+        
         <h1 id="title-selection">¿Quién está usando Temp Files?</h1>
+
+        <!-- GUÍA DE EXPLICACIÓN PARA NUEVOS USUARIOS -->
+        <div class="welcome-onboarding-card" id="welcome-onboarding-card">
+          <div class="welcome-header">
+            <div class="welcome-title-wrap">
+              <i data-lucide="sparkles" class="welcome-sparkles" style="color: #fbbf24; width: 18px; height: 18px;"></i>
+              <h3>Guía de Inicio Rápido & PIN Seguro</h3>
+            </div>
+          </div>
+          <div class="welcome-body-text">
+            <p><strong>Temp Files</strong> es tu espacio seguro privado para cargar y compartir cualquier archivo en tu comunidad de forma instantánea.</p>
+            <div class="onboarding-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-desc">
+                  <strong>Añade Perfil:</strong> Pulsa el botón <strong>"+"</strong> para registrarte. Elige tu nombre y un avatar moderno.
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-desc">
+                  <strong>Define un PIN:</strong> Elige un <strong>PIN confidencial de 4 dígitos</strong>. Este PIN es tu llave física: protege tus subidas privadas de miradas externas y bloquea el borrado accidental de tus recursos.
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-desc">
+                  <strong>Visor Avanzado Todo Terreno:</strong> Carga cualquier formato (audio, video, ZIP, RAR, imágenes, PDFs, Word, Excel, e incluso binarios con lector hexadecimal nativo en vivo). Decida si los guarda personales o los publica al grupo.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div id="profiles-grid" class="profiles-grid">
           <!-- Los perfiles se renderizarán dinámicamente aquí -->
         </div>
@@ -36,9 +75,11 @@
         
         <!-- Sidebar lateral -->
         <aside class="sidebar">
-          <div class="sidebar-brand">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="sidebar-avatar" style="color: var(--accent-light);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-            <h2>Temp Files</h2>
+          <div class="sidebar-brand-wrapper">
+            <img src="https://i.ibb.co/R4ZRNRmR/logoof.png" alt="Temp Files Logo" class="sidebar-logo-brand" width="38" height="38" referrerpolicy="no-referrer" />
+            <div class="sidebar-brand-text">
+              <h2>Temp Files</h2>
+            </div>
           </div>
 
           <nav>
@@ -178,8 +219,21 @@
           <div id="view-perfil" class="dashboard-view">
             <div class="profile-view-root">
               
-              <div id="profile-card-display" class="profile-card-display">
-                <!-- Render de perfil y estadísticas -->
+              <div class="profile-left-column">
+                <div id="profile-card-display" class="profile-card-display">
+                  <!-- Render de perfil y estadísticas -->
+                </div>
+
+                <!-- TODOS LOS QUE SE UNAN (MIEMBROS DE LA COMUNIDAD) -->
+                <div id="community-profiles-box" class="community-profiles-box">
+                  <div class="community-profiles-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-light)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <h4>Integrantes del Grupo</h4>
+                  </div>
+                  <div class="community-profiles-list" id="community-profiles-list">
+                    <!-- Cargados dinámicamente -->
+                  </div>
+                </div>
               </div>
 
               <div class="profile-actions-panel">
@@ -298,6 +352,38 @@
             <button id="btn-save-rename" class="btn-primary">
               <i data-lucide="save"></i> Cambiar Nombre
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL 4: VISOR DE ARCHIVOS MULTIFORMATO -->
+      <div id="modal-visor" class="modal-overlay">
+        <div class="modal modal-xl">
+          <div class="modal-header">
+            <h2 id="visor-titulo" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;">Vista Previa</h2>
+            <button id="btn-close-visor" class="btn-close-modal">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <div class="visor-content-wrapper">
+            <div id="visor-display-area" class="visor-display-area">
+              <!-- Aquí se inserta dinámicamente la imagen, reproductor de audio, video, visor de texto o iframe de doc -->
+            </div>
+            <div class="visor-meta-area">
+              <div class="visor-meta-info">
+                <span id="visor-meta-ext" class="file-badge">ZIP</span>
+                <span id="visor-meta-size">0 KB</span>
+                <p id="visor-meta-uploader" class="visor-uploader-tag"></p>
+              </div>
+              <div class="visor-meta-actions">
+                <a id="visor-btn-descargar" href="#" class="btn-primary" download>
+                  <i data-lucide="download"></i> Descargar
+                </a>
+                <button id="visor-btn-copiar" class="btn-file-option" style="width: auto; padding: 0 1rem; gap: 0.5rem;" title="Copiar enlace">
+                  <i data-lucide="link" style="width: 14px; height: 14px;"></i> Copiar Enlace
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
